@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS movies.movie;
 
 CREATE TABLE movies.movie (
-  movie_id INT NOT NULL AUTO_INCREMENT,
+  movie_id INT,
   title VARCHAR(1000) DEFAULT NULL,
   budget INT DEFAULT NULL,
   homepage VARCHAR(1000) DEFAULT NULL,
