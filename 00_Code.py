@@ -12,3 +12,5 @@ cur = connection.cursor()
 
 cur.execute("SELECT title FROM movies WHERE vote_average==5;")
 print(cur.fetchall())
+
+connection.close()
