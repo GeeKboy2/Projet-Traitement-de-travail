@@ -6,54 +6,81 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sqlite3 import OperationalError
 from sklearn.decomposition import PCA
+import sys
+
+np.set_printoptions(threshold=sys.maxsize)
 
 connection = sqlite3.connect("data.db")
 cur = connection.cursor()
-# ["movie_id", "title", "budget", "homepage", "overview", "popularity", "release_date", "revenue", "runtime", "movie_status", "tagline", "vote_average", "vote_count"]
-cur.execute("SELECT budget, popularity, runtime, revenue, vote_average, vote_count, genre_name FROM movies JOIN movie_genres ON movie_genres.movie_id = movies.movie_id JOIN genre ON genre.genre_id = movie_genres.genre_id WHERE vote_count>=100 AND budget>999 AND runtime>0 AND revenue>999;")
+# cur.execute("SELECT budget, popularity, runtime, revenue, vote_average, vote_count, genre_name FROM movies JOIN movie_genres ON movie_genres.movie_id = movies.movie_id JOIN genre ON genre.genre_id = movie_genres.genre_id WHERE vote_count>=100 AND budget>999 AND runtime>0 AND revenue>999;")
+cur.execute("SELECT budget, popularity, runtime, revenue, vote_average, vote_count, genre_name FROM movies JOIN movie_genres ON movie_genres.movie_id = movies.movie_id JOIN genre ON genre.genre_id = movie_genres.genre_id WHERE vote_count>=50 AND budget>999 AND runtime>0 AND revenue>999;")
 fetch = cur.fetchall()
-#cur.execute("SELECT genre_name FROM movies JOIN movie_genres ON movie_genres.movie_id = movies.movie_id JOIN genre ON genre.genre_id = movie_genres.genre_id WHERE vote_count>=100 AND budget>999 AND runtime>0 AND revenue>999;")
-#fetch2 = cur.fetchall()
 connection.close()
-# cur.execute("SELECT title FROM movies WHERE vote_count>=100 AND budget>999 AND runtime>0 AND revenue>999;")
-# fetchtitle = pd.DataFrame(cur.fetchall())
 # print(fetch)
 
 features = ["budget", "popularity", "runtime", "revenue", "vote_average", "vote_count", "genre"]
 df = pd.DataFrame(data=fetch, columns=features)
 print(df.head())
 donnees = df
-# Separating out the features
-x = df.loc[:, features[:-1]].values
-# Separating out the target
-y = df.loc[:,['genre']].values
-# Standardizing the features
-x = StandardScaler().fit_transform(x)
-pca = PCA(n_components=2)
+
+x = df.loc[:, features[:-1]].values  # Separating out the features
+y = df.loc[:,['genre']].values  # Separating out the target
+x = StandardScaler().fit_transform(x)  # Standardiser
+nb_composantes = 3  # 3D
+pca = PCA(n_components=nb_composantes)  #
 principalComponents = pca.fit_transform(x)
-principalDf = pd.DataFrame(data = principalComponents
-             , columns = ['principal component 1', 'principal component 2'])
+principalDf = pd.DataFrame(data = principalComponents,
+                           columns=['principal component 1', 'principal component 2', 'principal component 3'][:nb_composantes])
 
-finalDf = pd.concat([principalDf, df[['genre']]], axis = 1)
+# print(np.corrcoef(x))
+finalDf = pd.concat([principalDf, df[['genre']]], axis=1)
 
-fig = plt.figure(figsize = (8,8))
-ax = fig.add_subplot(1,1,1)
-ax.set_xlabel('Principal Component 1', fontsize = 15)
-ax.set_ylabel('Principal Component 2', fontsize = 15)
-ax.set_title('2 component PCA', fontsize = 20)
 targets = ['Adventure', 'Fantasy', 'Animation', 'Drama', 'Horror', 'Action', 'Comedy', 'History', 'Western', 'Thriller', 'Crime', 'Documentary', 'Science Fiction', 'Mystery', 'Music', 'Romance', 'Family', 'War', 'Foreign', 'TV Movie']
 NUM_COLORS = len(targets)
 cm = plt.get_cmap('gist_rainbow')
-colors = [cm(1.*i/NUM_COLORS) for i in range(NUM_COLORS)]
-for target, color in zip(targets,colors):
-    indicesToKeep = finalDf['genre'] == target
-    ax.scatter(finalDf.loc[indicesToKeep, 'principal component 1']
-               , finalDf.loc[indicesToKeep, 'principal component 2']
-               , c = color
-               , s = 50)
-ax.legend(targets)
-ax.grid()
+
+for i in range(len(targets)):
+    fig = plt.figure(figsize = (8,8))
+    ax = plt.axes(projection='3d')
+    # ax = fig.add_subplot(1,1,1)
+    ax.set_xlabel('Principal Component 1', fontsize = 15)
+    ax.set_ylabel('Principal Component 2', fontsize = 15)
+    ax.set_zlabel('Principal Component 3', fontsize=15)
+
+    ax.set_title('{} component PCA {}'.format(nb_composantes, targets[i]), fontsize = 20)
+    colors = ['k' for _ in range(NUM_COLORS)]
+    colors[i] = cm(1.*i/NUM_COLORS)
+    # colors = [cm(1.*i/NUM_COLORS) for i in range(NUM_COLORS)]
+    k=0
+    for target, color in zip(targets,colors):
+        indicesToKeep = finalDf['genre'] == target
+        ax.scatter(finalDf.loc[indicesToKeep, 'principal component 1'],
+                   finalDf.loc[indicesToKeep, 'principal component 2'],
+                   finalDf.loc[indicesToKeep, 'principal component 3'],
+                   c = color,
+                   s = 50,
+                   alpha = .05+.95*int(k==i))
+        k+=1
+    ax.legend(targets)
+    ax.grid()
+    plt.axis('equal')
+print(pca.explained_variance_)  # Valeurs propres
+print(pca.explained_variance_ratio_)  # Inerties
+# Plot a variable factor map for the first two dimensions. (Cercle des corrélations)
+(fig, ax) = plt.subplots(figsize=(8, 8))
+for i in range(0, len(features)-1):  # len(pca.components_)):
+    ax.arrow(0, 0,  # Start the arrow at the origin
+             pca.components_[0, i], pca.components_[1, i],  # 0 and 1 correspond to dimension 1 and 2
+             head_width=0.1, head_length=0.1)
+    plt.text(pca.components_[0, i] + 0.05, pca.components_[1, i] + 0.05, df.columns.values[i])
+
+an = np.linspace(0, 2 * np.pi, 100)  # Add a unit circle for scale
+plt.plot(np.cos(an), np.sin(an))
+plt.axis('equal')
+ax.set_title('Variable factor map (Cercle des corrélations)')
 plt.show()
+
+
 """
 # y =pd.Series(donnees).map({0})
 print(donnees.head(3000))
