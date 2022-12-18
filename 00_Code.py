@@ -52,34 +52,29 @@ for i in range(len(targets)):
 
     ax.set_title('{} component PCA'.format(nb_composantes))  # , targets[i]), fontsize = 20)
     colors = ['k' for _ in range(NUM_COLORS)]
-    colors[i] = 'b' # cm(1.*i/NUM_COLORS)
+    colors[i] = 'b'  # cm(1.*i/NUM_COLORS)
     # colors = [cm(1.*i/NUM_COLORS) for i in range(NUM_COLORS)]
     k = 0
     for target, color in zip(targets, colors):
         indicesToKeep = finalDf['genre'] == target
-        #print(np.where(indicesToKeep==True))
         ax.scatter(finalDf.loc[indicesToKeep, 'principal component 1'],
                    finalDf.loc[indicesToKeep, 'principal component 2'],
                    finalDf.loc[indicesToKeep, 'principal component 3'],
                    c=color,
                    s=50,
                    alpha=.05+.95*int(k == i))
-        if k==i:
-            j=-1
-            indice=np.where(indicesToKeep == True)[0]
+        if k == i:
+            j = -1
+            indice = np.where(indicesToKeep)[0]
             for x, y, z in zip(finalDf.loc[indicesToKeep, 'principal component 1'], finalDf.loc[indicesToKeep, 'principal component 2'], finalDf.loc[indicesToKeep, 'principal component 3']):
-                # np.array(titres)[np.where(indicesToKeep==True),0]
-                #print(titres[indice[j]][0])
                 j += 1
-                if j%(1+len(indice)//10) and i:
+                if j % (1+len(indice)//10) and i:
                     continue
                 ax.text(x,
                         y,
                         z,
                         titres[indice[j]][0],
                         color='b')
-
-
         k += 1
     ax.legend(targets)
     ax.grid()
@@ -100,24 +95,24 @@ plt.axis('equal')
 ax.set_title('Variable factor map (Cercle des corrélations)')
 
 
-X_=(X-(np.sum(X,axis=0)/n))/np.sqrt(np.sum((X-np.sum(X,axis=0)/n)**2,axis=0)/n)
-mu=(1/n)*np.sum(X,axis=0)
-sigma=np.sqrt(np.sum((X-(np.sum(X,axis=0)/n))**2,axis=0)/n)
-C=(1/n)*np.dot(X_.T,X_)
-D,V=np.linalg.eig(C)
-a=np.flip(np.argsort(D))
-I=D/np.sum(D)
-I=np.flip(np.sort(I))
-I1=np.cumsum(I)
-location=np.where(I1>=0.9)
-S=np.dot(X_,V)
+X_ = (X-(np.sum(X, axis=0)/n))/np.sqrt(np.sum((X-np.sum(X, axis=0)/n)**2, axis=0)/n)
+mu = np.sum(X, axis=0)/n
+sigma = np.sqrt(np.sum((X-(np.sum(X, axis=0)/n))**2, axis=0)/n)
+C = np.dot(X_.T, X_)/n
+D, V = np.linalg.eig(C)
+a = np.flip(np.argsort(D))
+I = D/np.sum(D)
+I = np.flip(np.sort(I))
+I1 = np.cumsum(I)
+location = np.where(I1 >= 0.9)
+S = np.dot(X_, V)
 
-ctr = (S**2)/np.sum(S**2,axis=0)
+ctr = (S**2)/np.sum(S**2, axis=0)
 # sum = np.reshape(np.sum(S**2,axis=1),(1,n)).T
-Q = (S**2)/np.reshape(np.sum(S**2,axis=1),(1,n)).T
+Q = (S**2)/np.reshape(np.sum(S**2, axis=1), (1, n)).T
 pays_cont = []
 seuil = 0.01
-#seuil = 0.00
+# seuil = 0.00
 print(n)
 if nb_composantes == 2:
     for i in range(n):
@@ -128,15 +123,12 @@ if nb_composantes == 2:
             print("Qualités :", Q[i, [a[0], a[1]]])
 elif nb_composantes == 3:
     for i in range(n):
-        if ctr[i,a[0]] > seuil or ctr[i, a[1]] > seuil or ctr[i, a[2]] > seuil:
+        if ctr[i, a[0]] > seuil or ctr[i, a[1]] > seuil or ctr[i, a[2]] > seuil:
             pays_cont += [i]
             print("\n{} : {}".format(titres[i][0], i))
-            print("Contributions :",ctr[i, [a[0], a[1], a[2]]])
+            print("Contributions :", ctr[i, [a[0], a[1], a[2]]])
             print("Qualité :", Q[i, [a[0], a[1], a[2]]])
 print("\nLe nombre de films à contribution sup à {} est {}".format(seuil, len(pays_cont)))
-
-
-
 
 """
 for i in range(0,n,20):
@@ -144,4 +136,3 @@ for i in range(0,n,20):
     ax.legend(labels_region, bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
 """
 plt.show()
-
