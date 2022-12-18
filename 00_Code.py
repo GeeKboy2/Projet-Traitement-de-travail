@@ -5,18 +5,52 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 import sys
-
+from mpl_toolkits.mplot3d.proj3d import proj_transform
+from mpl_toolkits.mplot3d.axes3d import Axes3D
+from matplotlib.patches import FancyArrowPatch
 np.set_printoptions(threshold=sys.maxsize)
 
+
+class Arrow3D(FancyArrowPatch):
+
+    def __init__(self, x, y, z, dx, dy, dz, *args, **kwargs):
+        super().__init__((0, 0), (0, 0), *args, **kwargs)
+        self._xyz = (x, y, z)
+        self._dxdydz = (dx, dy, dz)
+
+    def draw(self, renderer):
+        x1, y1, z1 = self._xyz
+        dx, dy, dz = self._dxdydz
+        x2, y2, z2 = (x1 + dx, y1 + dy, z1 + dz)
+
+        xs, ys, zs = proj_transform((x1, x2), (y1, y2), (z1, z2), self.axes.M)
+        self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
+        super().draw(renderer)
+
+    def do_3d_projection(self, renderer=None):
+        x1, y1, z1 = self._xyz
+        dx, dy, dz = self._dxdydz
+        x2, y2, z2 = (x1 + dx, y1 + dy, z1 + dz)
+
+        xs, ys, zs = proj_transform((x1, x2), (y1, y2), (z1, z2), self.axes.M)
+        self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
+
+        return np.min(zs)
+
+def _arrow3D(ax, x, y, z, dx, dy, dz, *args, **kwargs):
+    '''Add an 3d arrow to an `Axes3D` instance.'''
+
+    arrow = Arrow3D(x, y, z, dx, dy, dz, *args, **kwargs)
+    ax.add_artist(arrow)
+
+
+setattr(Axes3D, 'arrow3D', _arrow3D)
 connection = sqlite3.connect("data.db")
 cur = connection.cursor()
-# cur.execute("SELECT budget, popularity, runtime, revenue, vote_average, vote_count, genre_name FROM movies JOIN movie_genres ON movie_genres.movie_id = movies.movie_id JOIN genre ON genre.genre_id = movie_genres.genre_id WHERE vote_count>=100 AND budget>999 AND runtime>0 AND revenue>999;")
 cur.execute("SELECT budget, popularity, runtime, revenue, vote_average, vote_count, genre_name, title FROM movies JOIN movie_genres ON movie_genres.movie_id = movies.movie_id JOIN genre ON genre.genre_id = movie_genres.genre_id WHERE vote_count>=50 AND budget>999 AND runtime>0 AND revenue>999 GROUP BY title;")
 fetch = cur.fetchall()
 connection.close()
-# print(fetch)
 
-# titres = list(titles)
 features = ["budget", "popularity", "runtime", "revenue", "vote_average", "vote_count", "genre", "title"]
 df = pd.DataFrame(data=fetch, columns=features)
 print(df.head())
@@ -84,10 +118,10 @@ print(pca.explained_variance_ratio_)  # Inerties
 # Plot a variable factor map for the first two dimensions. (Cercle des corrélations)
 (fig, ax) = plt.subplots(figsize=(8, 8))
 for i in range(0, len(features)-2):  # len(pca.components_)):
-    ax.arrow(0, 0,  # Start the arrow at the origin
-             pca.components_[0, i], pca.components_[1, i],  # 0 and 1 correspond to dimension 1 and 2
-             head_width=0.1, head_length=0.1)
-    plt.text(pca.components_[0, i] + 0.05, pca.components_[1, i] + 0.05, df.columns.values[i])
+    ax.arrow3D(0, 0, 0, # Start the arrow at the origin
+             pca.components_[0, i], pca.components_[1, i], pca.components_[2, i]) # 0 and 1 correspond to dimension 1 and 2
+             # head_width=0.1, head_length=0.1)
+    ax.text(pca.components_[0, i] + 0.05, pca.components_[1, i] + 0.05, pca.components_[2, i] + 0.05, df.columns.values[i])
 
 an = np.linspace(0, 2 * np.pi, 100)  # Add a unit circle for scale
 plt.plot(np.cos(an), np.sin(an))
@@ -108,7 +142,6 @@ location = np.where(I1 >= 0.9)
 S = np.dot(X_, V)
 
 ctr = (S**2)/np.sum(S**2, axis=0)
-# sum = np.reshape(np.sum(S**2,axis=1),(1,n)).T
 Q = (S**2)/np.reshape(np.sum(S**2, axis=1), (1, n)).T
 pays_cont = []
 seuil = 0.01
@@ -117,17 +150,18 @@ print(n)
 if nb_composantes == 2:
     for i in range(n):
         if ctr[i, a[0]] > seuil or ctr[i, a[1]] > seuil:
-            pays_cont += [i]
+            pays_cont.append(i)
             print("\n{} : {}".format(titres[i][0], i))
             print("Contributions : ", ctr[i, [a[0], a[1]]])
             print("Qualités :", Q[i, [a[0], a[1]]])
 elif nb_composantes == 3:
     for i in range(n):
         if ctr[i, a[0]] > seuil or ctr[i, a[1]] > seuil or ctr[i, a[2]] > seuil:
-            pays_cont += [i]
+            pays_cont.append(i)
             print("\n{} : {}".format(titres[i][0], i))
             print("Contributions :", ctr[i, [a[0], a[1], a[2]]])
             print("Qualité :", Q[i, [a[0], a[1], a[2]]])
+print(pays_cont)
 print("\nLe nombre de films à contribution sup à {} est {}".format(seuil, len(pays_cont)))
 
 """
